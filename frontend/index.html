@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Ticket Assistant</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: #1a1a2e;
+            color: white;
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .header span {
+            font-size: 24px;
+        }
+
+        .badge {
+            background: #0f3460;
+            color: #e94560;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        /* Main layout */
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 28px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+
+        .card h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #f0f2f5;
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+            outline: none;
+        }
+
+        input:focus, textarea:focus {
+            border-color: #0f3460;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: #0f3460;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 8px;
+        }
+
+        .btn:hover { background: #1a1a2e; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+
+        /* Result panel */
+        .result-panel {
+            display: none;
+        }
+
+        .result-panel.visible {
+            display: block;
+        }
+
+        .ticket-id {
+            font-size: 22px;
+            font-weight: 700;
+            color: #0f3460;
+            margin-bottom: 16px;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f2f5;
+            font-size: 14px;
+        }
+
+        .result-row:last-child { border-bottom: none; }
+
+        .result-label {
+            color: #888;
+            font-weight: 500;
+        }
+
+        .result-value {
+            font-weight: 600;
+            color: #1a1a2e;
+            text-align: right;
+            max-width: 60%;
+        }
+
+        /* Badges */
+        .priority-badge, .category-badge, .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .priority-Critical { background: #ffe0e0; color: #c0392b; }
+        .priority-High { background: #fff0e0; color: #e67e22; }
+        .priority-Medium { background: #fff9e0; color: #f39c12; }
+        .priority-Low { background: #e0ffe0; color: #27ae60; }
+
+        .category-badge { background: #e8f0fe; color: #1a73e8; }
+        .status-badge { background: #e0ffe0; color: #27ae60; }
+
+        /* AI Summary box */
+        .ai-summary {
+            background: #f8f9ff;
+            border-left: 4px solid #0f3460;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 16px 0;
+            font-size: 14px;
+            color: #333;
+            font-style: italic;
+        }
+
+        /* Loading spinner */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .loading.visible { display: block; }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid #f0f2f5;
+            border-top: 3px solid #0f3460;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #aaa;
+        }
+
+        .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-state p { font-size: 14px; }
+
+        /* Error */
+        .error-box {
+            background: #ffe0e0;
+            color: #c0392b;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            margin-top: 12px;
+        }
+
+        .error-box.visible { display: block; }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <span>🎫</span>
+        <h1>AI Ticket Assistant</h1>
+        <div class="badge">AI POWERED</div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+
+        <!-- Left: Submit Form -->
+        <div class="card">
+            <h2>📝 Submit New Ticket</h2>
+
+            <div class="form-group">
+                <label>Your Email</label>
+                <input type="email" id="email" placeholder="you@company.com" />
+            </div>
+
+            <div class="form-group">
+                <label>Ticket Title</label>
+                <input type="text" id="title" placeholder="e.g. SAP Login Issue" />
+            </div>
+
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="description" placeholder="Describe the issue in detail..."></textarea>
+            </div>
+
+            <button class="btn" id="submitBtn" onclick="submitTicket()">
+                🚀 Submit Ticket
+            </button>
+
+            <div class="error-box" id="errorBox"></div>
+        </div>
+
+        <!-- Right: AI Result -->
+        <div class="card">
+            <h2>🤖 AI Analysis Result</h2>
+
+            <!-- Empty state -->
+            <div class="empty-state" id="emptyState">
+                <div class="icon">🎯</div>
+                <p>Submit a ticket to see<br>AI-powered analysis here</p>
+            </div>
+
+            <!-- Loading -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>AI is analyzing your ticket...</p>
+            </div>
+
+            <!-- Result -->
+            <div class="result-panel" id="resultPanel">
+                <div class="ticket-id" id="ticketId"></div>
+
+                <div class="ai-summary" id="aiSummary"></div>
+
+                <div class="result-row">
+                    <span class="result-label">Category</span>
+                    <span class="category-badge" id="aiCategory"></span>
+                </div>
+
+                <div class="result-row">
+                    <span class="result-label">Priority</span>
+                    <span class="priority-badge" id="aiPriority"></span>
+                </div>
+
+                <div class="result-row">
+                    <span class="result-label">Status</span>
+                    <span class="status-badge" id="status"></span>
+                </div>
+
+                <div class="result-row">
+                    <span class="result-label">Submitted By</span>
+                    <span class="result-value" id="submittedBy"></span>
+                </div>
+
+                <div class="result-row">
+                    <span class="result-label">Created At</span>
+                    <span class="result-value" id="createdAt"></span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        async function submitTicket() {
+            // Get form values
+            const email = document.getElementById('email').value.trim();
+            const title = document.getElementById('title').value.trim();
+            const description = document.getElementById('description').value.trim();
+            const errorBox = document.getElementById('errorBox');
+
+            // Basic validation
+            if (!email || !title || !description) {
+                errorBox.textContent = '⚠️ Please fill in all fields.';
+                errorBox.classList.add('visible');
+                return;
+            }
+
+            errorBox.classList.remove('visible');
+
+            // Show loading
+            showLoading();
+
+            try {
+                // Call our API
+                const response = await fetch('http://127.0.0.1:8000/tickets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: title,
+                        description: description,
+                        submitted_by: email
+                    })
+                });
+
+                if (!response.ok) throw new Error('API error: ' + response.status);
+
+                const data = await response.json();
+                showResult(data);
+
+            } catch (error) {
+                hideLoading();
+                errorBox.textContent = '❌ Error: Could not reach the API. Is the backend running?';
+                errorBox.classList.add('visible');
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('resultPanel').classList.remove('visible');
+            document.getElementById('loading').classList.add('visible');
+            document.getElementById('submitBtn').disabled = true;
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('visible');
+            document.getElementById('submitBtn').disabled = false;
+        }
+
+        function showResult(data) {
+            hideLoading();
+
+            // Fill in results
+            document.getElementById('ticketId').textContent = data.ticket_id;
+            document.getElementById('aiSummary').textContent = '💡 ' + data.ai_summary;
+            document.getElementById('aiCategory').textContent = data.ai_category;
+            document.getElementById('aiPriority').textContent = data.ai_priority;
+            document.getElementById('status').textContent = data.status.toUpperCase();
+            document.getElementById('submittedBy').textContent = data.submitted_by;
+            document.getElementById('createdAt').textContent = 
+                new Date(data.created_at).toLocaleString();
+
+            // Apply priority color
+            const priorityEl = document.getElementById('aiPriority');
+            priorityEl.className = 'priority-badge priority-' + data.ai_priority;
+
+            // Show result panel
+            document.getElementById('resultPanel').classList.add('visible');
+        }
+    </script>
+
+</body>
+</html>

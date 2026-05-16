@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
 import uuid
@@ -17,6 +18,15 @@ app = FastAPI(
     title="AI Ticket Assistant API",
     description="Enterprise Ticket Management powered by AI",
     version="2.0.0"
+)
+
+# Allow frontend to talk to backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Define what a Ticket looks like
