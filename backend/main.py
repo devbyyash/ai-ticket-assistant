@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
@@ -6,6 +6,8 @@ import uuid
 from groq import Groq
 import os
 from dotenv import load_dotenv
+from sqlalchemy.orm import Session
+from database import TicketDB, get_db, init_db
 
 # Load environment variables
 load_dotenv()
@@ -17,7 +19,7 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 app = FastAPI(
     title="AI Ticket Assistant API",
     description="Enterprise Ticket Management powered by AI",
-    version="2.0.0"
+    version="3.0.0"
 )
 
 # Allow frontend to talk to backend
@@ -29,13 +31,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Define what a Ticket looks like
+# Create database tables on startup
+@app.on_event("startup")
+def startup_event():
+    init_db()
+    print("✅ Database initialized!")
+
+# ─── Models ───────────────────────────────────────────
+
 class Ticket(BaseModel):
     title: str
     description: str
     submitted_by: str
 
-# Define what the Response looks like
 class TicketResponse(BaseModel):
     ticket_id: str
     title: str
@@ -48,17 +56,18 @@ class TicketResponse(BaseModel):
     ai_priority: str
     message: str
 
-# Root endpoint
+# ─── Endpoints ────────────────────────────────────────
+
 @app.get("/")
 def root():
     return {"message": "AI Ticket Assistant API is running 🚀"}
 
-# Health check endpoint
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
-# AI analysis function
+# ─── AI Analysis ──────────────────────────────────────
+
 def analyze_ticket_with_ai(title: str, description: str) -> dict:
 
     prompt = f"""
@@ -80,18 +89,12 @@ def analyze_ticket_with_ai(title: str, description: str) -> dict:
     """
 
     chat_completion = client.chat.completions.create(
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
+        messages=[{"role": "user", "content": prompt}],
         model="llama-3.3-70b-versatile",
     )
 
     result_text = chat_completion.choices[0].message.content.strip()
 
-    # Parse the AI response
     lines = result_text.split("\n")
     ai_data = {}
 
@@ -103,38 +106,60 @@ def analyze_ticket_with_ai(title: str, description: str) -> dict:
         elif line.startswith("PRIORITY:"):
             ai_data["priority"] = line.replace("PRIORITY:", "").strip()
 
-    # Fallbacks if parsing fails
     ai_data.setdefault("summary", "Unable to generate summary")
     ai_data.setdefault("category", "Other")
     ai_data.setdefault("priority", "Medium")
 
     return ai_data
 
-# Submit ticket endpoint
+# ─── Submit Ticket ────────────────────────────────────
+
 @app.post("/tickets", response_model=TicketResponse)
-def submit_ticket(ticket: Ticket):
+def submit_ticket(ticket: Ticket, db: Session = Depends(get_db)):
 
     # Generate unique ticket ID
     ticket_id = f"TKT-{str(uuid.uuid4())[:8].upper()}"
-
-    # Get current timestamp
     created_at = datetime.now().isoformat()
 
-    # Call AI to analyze the ticket
+    # AI analysis
     ai_result = analyze_ticket_with_ai(ticket.title, ticket.description)
 
-    # Build response
-    response = TicketResponse(
-        ticket_id=ticket_id,
-        title=ticket.title,
-        description=ticket.description,
-        submitted_by=ticket.submitted_by,
-        status="open",
-        created_at=created_at,
-        ai_summary=ai_result["summary"],
-        ai_category=ai_result["category"],
-        ai_priority=ai_result["priority"],
-        message=f"Ticket {ticket_id} submitted and analyzed by AI successfully!"
+    # Save to database ← NEW!
+    db_ticket = TicketDB(
+        ticket_id    = ticket_id,
+        title        = ticket.title,
+        description  = ticket.description,
+        submitted_by = ticket.submitted_by,
+        status       = "open",
+        ai_summary   = ai_result["summary"],
+        ai_category  = ai_result["category"],
+        ai_priority  = ai_result["priority"],
+        created_at   = created_at
+    )
+    db.add(db_ticket)
+    db.commit()
+
+    print(f"✅ Ticket {ticket_id} saved to database!")
+
+    return TicketResponse(
+        ticket_id    = ticket_id,
+        title        = ticket.title,
+        description  = ticket.description,
+        submitted_by = ticket.submitted_by,
+        status       = "open",
+        created_at   = created_at,
+        ai_summary   = ai_result["summary"],
+        ai_category  = ai_result["category"],
+        ai_priority  = ai_result["priority"],
+        message      = f"Ticket {ticket_id} submitted and saved successfully!"
     )
 
-    return response
+# ─── Get All Tickets ──────────────────────────────────
+
+@app.get("/tickets")
+def get_all_tickets(db: Session = Depends(get_db)):
+    tickets = db.query(TicketDB).order_by(TicketDB.created_at.desc()).all()
+    return {
+        "total": len(tickets),
+        "tickets": tickets
+    }
