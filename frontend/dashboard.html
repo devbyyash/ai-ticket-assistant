@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - AI Ticket Assistant</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: #1a1a2e;
+            color: white;
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header h1 { font-size: 20px; font-weight: 600; }
+
+        .badge {
+            background: #0f3460;
+            color: #e94560;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .nav-btn {
+            background: #0f3460;
+            color: white;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .nav-btn:hover { background: #e94560; }
+
+        .container {
+            max-width: 1100px;
+            margin: 32px auto;
+            padding: 0 20px;
+        }
+
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: #0f3460;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card.critical .stat-number { color: #c0392b; }
+        .stat-card.high .stat-number { color: #e67e22; }
+        .stat-card.medium .stat-number { color: #f39c12; }
+
+        /* Filters */
+        .filters {
+            background: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        select {
+            padding: 8px 12px;
+            border: 1.5px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+            background: white;
+        }
+
+        select:focus { border-color: #0f3460; }
+
+        .refresh-btn {
+            margin-left: auto;
+            background: #0f3460;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .refresh-btn:hover { background: #1a1a2e; }
+
+        /* Table */
+        .table-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .table-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f2f5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header h2 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+
+        .total-badge {
+            background: #e8f0fe;
+            color: #1a73e8;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f8f9fa;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 700;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 13px;
+            border-bottom: 1px solid #f8f9fa;
+            color: #333;
+        }
+
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #fafbff; }
+
+        .ticket-id-cell {
+            font-weight: 700;
+            color: #0f3460;
+            font-size: 12px;
+        }
+
+        .title-cell {
+            font-weight: 600;
+            max-width: 200px;
+        }
+
+        .summary-cell {
+            color: #666;
+            font-style: italic;
+            max-width: 220px;
+        }
+
+        /* Priority badges */
+        .priority-badge {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .priority-Critical { background: #ffe0e0; color: #c0392b; }
+        .priority-High     { background: #fff0e0; color: #e67e22; }
+        .priority-Medium   { background: #fff9e0; color: #f39c12; }
+        .priority-Low      { background: #e0ffe0; color: #27ae60; }
+
+        .category-badge {
+            background: #e8f0fe;
+            color: #1a73e8;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .status-badge {
+            background: #e0ffe0;
+            color: #27ae60;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        /* Loading / Empty */
+        .loading-row td, .empty-row td {
+            text-align: center;
+            padding: 48px;
+            color: #aaa;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-left">
+            <span>📊</span>
+            <h1>Ticket Dashboard</h1>
+            <div class="badge">LIVE</div>
+        </div>
+        <a href="index.html" class="nav-btn">➕ New Ticket</a>
+    </div>
+
+    <div class="container">
+
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-number" id="totalCount">-</div>
+                <div class="stat-label">Total Tickets</div>
+            </div>
+            <div class="stat-card critical">
+                <div class="stat-number" id="criticalCount">-</div>
+                <div class="stat-label">Critical</div>
+            </div>
+            <div class="stat-card high">
+                <div class="stat-number" id="highCount">-</div>
+                <div class="stat-label">High Priority</div>
+            </div>
+            <div class="stat-card medium">
+                <div class="stat-number" id="mediumCount">-</div>
+                <div class="stat-label">Medium / Low</div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <span class="filter-label">Filter by:</span>
+
+            <select id="filterPriority" onchange="applyFilters()">
+                <option value="">All Priorities</option>
+                <option value="Critical">Critical</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+            </select>
+
+            <select id="filterCategory" onchange="applyFilters()">
+                <option value="">All Categories</option>
+                <option value="Authentication">Authentication</option>
+                <option value="Network">Network</option>
+                <option value="Finance">Finance</option>
+                <option value="SAP-ERP">SAP-ERP</option>
+                <option value="HR">HR</option>
+                <option value="Infrastructure">Infrastructure</option>
+                <option value="Access-Management">Access-Management</option>
+                <option value="Other">Other</option>
+            </select>
+
+            <button class="refresh-btn" onclick="loadTickets()">🔄 Refresh</button>
+        </div>
+
+        <!-- Table -->
+        <div class="table-card">
+            <div class="table-header">
+                <h2>🎫 All Tickets</h2>
+                <span class="total-badge" id="shownCount">Loading...</span>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ticket ID</th>
+                        <th>Title</th>
+                        <th>AI Summary</th>
+                        <th>Category</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Submitted By</th>
+                        <th>Created At</th>
+                    </tr>
+                </thead>
+                <tbody id="ticketsTableBody">
+                    <tr class="loading-row">
+                        <td colspan="8">⏳ Loading tickets...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        let allTickets = [];
+
+        // Load tickets from API
+        async function loadTickets() {
+            document.getElementById('ticketsTableBody').innerHTML = 
+                '<tr class="loading-row"><td colspan="8">⏳ Loading tickets...</td></tr>';
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/tickets');
+                const data = await response.json();
+                allTickets = data.tickets;
+
+                updateStats(allTickets);
+                renderTable(allTickets);
+
+            } catch (error) {
+                document.getElementById('ticketsTableBody').innerHTML =
+                    '<tr class="empty-row"><td colspan="8">❌ Cannot reach API. Is backend running?</td></tr>';
+            }
+        }
+
+        // Update stat cards
+        function updateStats(tickets) {
+            document.getElementById('totalCount').textContent = tickets.length;
+            document.getElementById('criticalCount').textContent =
+                tickets.filter(t => t.ai_priority === 'Critical').length;
+            document.getElementById('highCount').textContent =
+                tickets.filter(t => t.ai_priority === 'High').length;
+            document.getElementById('mediumCount').textContent =
+                tickets.filter(t => t.ai_priority === 'Medium' || t.ai_priority === 'Low').length;
+        }
+
+        // Apply dropdown filters
+        function applyFilters() {
+            const priority = document.getElementById('filterPriority').value;
+            const category = document.getElementById('filterCategory').value;
+
+            let filtered = allTickets;
+
+            if (priority) filtered = filtered.filter(t => t.ai_priority === priority);
+            if (category) filtered = filtered.filter(t => t.ai_category === category);
+
+            renderTable(filtered);
+        }
+
+        // Render table rows
+        function renderTable(tickets) {
+            document.getElementById('shownCount').textContent = 
+                `Showing ${tickets.length} ticket${tickets.length !== 1 ? 's' : ''}`;
+
+            if (tickets.length === 0) {
+                document.getElementById('ticketsTableBody').innerHTML =
+                    '<tr class="empty-row"><td colspan="8">📭 No tickets found</td></tr>';
+                return;
+            }
+
+            const rows = tickets.map(t => `
+                <tr>
+                    <td class="ticket-id-cell">${t.ticket_id}</td>
+                    <td class="title-cell">${t.title}</td>
+                    <td class="summary-cell">${t.ai_summary}</td>
+                    <td><span class="category-badge">${t.ai_category}</span></td>
+                    <td><span class="priority-badge priority-${t.ai_priority}">${t.ai_priority}</span></td>
+                    <td><span class="status-badge">${t.status.toUpperCase()}</span></td>
+                    <td>${t.submitted_by}</td>
+                    <td>${new Date(t.created_at).toLocaleString()}</td>
+                </tr>
+            `).join('');
+
+            document.getElementById('ticketsTableBody').innerHTML = rows;
+        }
+
+        // Load on page open
+        loadTickets();
+    </script>
+
+</body>
+</html>
